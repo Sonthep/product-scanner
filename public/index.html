@@ -2179,6 +2179,31 @@
       closeLoginModal();
     }
 
+    // Google Identity Services Callback
+    function handleGoogleCredentialResponse(response) {
+      try {
+        const payload = parseJwt(response.credential);
+        if (payload && payload.email) {
+          handleGmailLogin(payload.email);
+        }
+      } catch (e) {
+        console.error("Google Auth error:", e);
+        showToast("เกิดข้อผิดพลาดในการเชื่อมต่อกับ Google");
+      }
+    }
+
+    function parseJwt(token) {
+      const base64Url = token.split(".")[1];
+      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split("")
+          .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+          .join("")
+      );
+      return JSON.parse(jsonPayload);
+    }
+
     // Initialize Login UI Event Listeners
     document.addEventListener("DOMContentLoaded", () => {
       updateUserUI();
@@ -2195,6 +2220,29 @@
       const gmailInput = document.getElementById("gmailInput");
       const phoneSubmitBtn = document.getElementById("phoneSubmitBtn");
       const phoneInput = document.getElementById("phoneInput");
+
+      // Set your Google OAuth Client ID here to enable native Google Sign-In Popup:
+      const GOOGLE_CLIENT_ID = ""; // e.g. "xxx.apps.googleusercontent.com"
+
+      if (window.google && GOOGLE_CLIENT_ID) {
+        try {
+          google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: handleGoogleCredentialResponse
+          });
+          const gBtnWrapper = document.getElementById("googleSignInWrapper");
+          if (gBtnWrapper) {
+            google.accounts.id.renderButton(gBtnWrapper, {
+              theme: "outline",
+              size: "large",
+              width: "100%",
+              text: "signin_with"
+            });
+          }
+        } catch (err) {
+          console.log("Google GIS init:", err);
+        }
+      }
 
       if (loginTriggerBtn) {
         loginTriggerBtn.addEventListener("click", () => {
@@ -2229,9 +2277,13 @@
 
       if (googlePromptBtn) {
         googlePromptBtn.addEventListener("click", () => {
-          const promptEmail = prompt("กรุณาระบุบัญชี Gmail ของคุณ:", "user@gmail.com");
-          if (promptEmail) {
-            handleGmailLogin(promptEmail);
+          if (window.google && GOOGLE_CLIENT_ID) {
+            google.accounts.id.prompt();
+          } else {
+            const promptEmail = prompt("กรุณาระบุบัญชี Gmail ของคุณ:", "user@gmail.com");
+            if (promptEmail) {
+              handleGmailLogin(promptEmail);
+            }
           }
         });
       }
