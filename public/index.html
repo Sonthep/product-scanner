@@ -12,7 +12,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 
   <style>
     :root {
@@ -2179,29 +2180,39 @@
       closeLoginModal();
     }
 
-    // Google Identity Services Callback
-    function handleGoogleCredentialResponse(response) {
-      try {
-        const payload = parseJwt(response.credential);
-        if (payload && payload.email) {
-          handleGmailLogin(payload.email);
-        }
-      } catch (e) {
-        console.error("Google Auth error:", e);
-        showToast("เกิดข้อผิดพลาดในการเชื่อมต่อกับ Google");
-      }
+    // --- Firebase & Auth Setup ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyBtXjcE3kcfAdii_cxoa0OO6Cc7gsSNA3U",
+      authDomain: "sevenfive-product-scanner.firebaseapp.com",
+      projectId: "sevenfive-product-scanner",
+      storageBucket: "sevenfive-product-scanner.firebasestorage.app",
+      messagingSenderId: "23795689310",
+      appId: "1:23795689310:web:f0e43fcb6b720a80db91cf"
+    };
+
+    if (window.firebase && !firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
     }
 
-    function parseJwt(token) {
-      const base64Url = token.split(".")[1];
-      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-      const jsonPayload = decodeURIComponent(
-        atob(base64)
-          .split("")
-          .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-          .join("")
-      );
-      return JSON.parse(jsonPayload);
+    function loginWithFirebaseGoogle() {
+      if (!window.firebase || !firebase.auth) {
+        showToast("กำลังโหลดระบบยืนยันตัวตน กรุณาลองใหม่อีกครั้ง");
+        return;
+      }
+      const provider = new firebase.auth.GoogleAuthProvider();
+      firebase.auth().signInWithPopup(provider)
+        .then((result) => {
+          const user = result.user;
+          handleGmailLogin(user.email || user.displayName || "Google User");
+        })
+        .catch((error) => {
+          console.error("Firebase auth error:", error);
+          if (error.code === "auth/popup-closed-by-user") {
+            showToast("ยกเลิกการเข้าสู่ระบบ");
+          } else {
+            showToast("เข้าสู่ระบบไม่สำเร็จ: " + (error.message || "เกิดข้อผิดพลาด"));
+          }
+        });
     }
 
     // Initialize Login UI Event Listeners
@@ -2220,29 +2231,6 @@
       const gmailInput = document.getElementById("gmailInput");
       const phoneSubmitBtn = document.getElementById("phoneSubmitBtn");
       const phoneInput = document.getElementById("phoneInput");
-
-      // Set your Google OAuth Client ID here to enable native Google Sign-In Popup:
-      const GOOGLE_CLIENT_ID = ""; // e.g. "xxx.apps.googleusercontent.com"
-
-      if (window.google && GOOGLE_CLIENT_ID) {
-        try {
-          google.accounts.id.initialize({
-            client_id: GOOGLE_CLIENT_ID,
-            callback: handleGoogleCredentialResponse
-          });
-          const gBtnWrapper = document.getElementById("googleSignInWrapper");
-          if (gBtnWrapper) {
-            google.accounts.id.renderButton(gBtnWrapper, {
-              theme: "outline",
-              size: "large",
-              width: "100%",
-              text: "signin_with"
-            });
-          }
-        } catch (err) {
-          console.log("Google GIS init:", err);
-        }
-      }
 
       if (loginTriggerBtn) {
         loginTriggerBtn.addEventListener("click", () => {
@@ -2277,14 +2265,7 @@
 
       if (googlePromptBtn) {
         googlePromptBtn.addEventListener("click", () => {
-          if (window.google && GOOGLE_CLIENT_ID) {
-            google.accounts.id.prompt();
-          } else {
-            const promptEmail = prompt("กรุณาระบุบัญชี Gmail ของคุณ:", "user@gmail.com");
-            if (promptEmail) {
-              handleGmailLogin(promptEmail);
-            }
-          }
+          loginWithFirebaseGoogle();
         });
       }
 
