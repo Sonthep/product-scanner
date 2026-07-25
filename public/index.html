@@ -1376,6 +1376,7 @@
     let cameras = [];
     let currentCameraId = "";
     let isCameraRunning = false;
+    let hasCameraStartedOnce = false;
     let isSearching = false;
     let isTorchOn = false;
     let lastScannedValue = "";
@@ -1492,6 +1493,7 @@
         );
 
         isCameraRunning = true;
+        hasCameraStartedOnce = true;
         elements.cameraFrame.classList.add("is-running");
         elements.cameraEmpty.hidden = true;
         setFeedback("กล้องพร้อมแล้ว วางโค้ดให้อยู่ภายในกรอบ", "");
@@ -1640,6 +1642,8 @@
       if (!isCameraMode) {
         await stopCamera();
         elements.skuInput.focus();
+      } else if (hasCameraStartedOnce && !isCameraRunning) {
+        await startCamera();
       }
     }
 
@@ -1738,7 +1742,6 @@
       hideProduct();
       setFeedback("", "");
       await switchMode("camera");
-      elements.cameraEmpty.hidden = false;
 
       if (window.matchMedia("(max-width: 880px)").matches) {
         document.querySelector(".scanner-card").scrollIntoView({
@@ -1746,6 +1749,8 @@
           block: "start"
         });
       }
+
+      await startCamera();
     }
 
     async function copySku() {
