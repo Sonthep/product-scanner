@@ -2481,13 +2481,13 @@
       }
     }
 
-    function handleGmailLogin(email) {
+    function handleGmailLogin(email, isGoogleAuth = false) {
       if (!email || !email.includes("@")) {
         showToast("กรุณากรอกอีเมล Email ที่ถูกต้อง");
         return;
       }
       saveUserState({
-        type: "gmail",
+        type: isGoogleAuth ? "Google/Gmail" : "Email",
         identifier: email,
         loginAt: new Date().toISOString()
       });
@@ -2536,7 +2536,7 @@
         .then((result) => {
           const user = result.user;
           if (user) {
-            handleGmailLogin(user.email || user.displayName || "Google User");
+            handleGmailLogin(user.email || user.displayName || "Google User", true);
           }
         })
         .catch((error) => {
@@ -2575,7 +2575,7 @@
         firebase.auth().getRedirectResult()
           .then((result) => {
             if (result && result.user) {
-              handleGmailLogin(result.user.email || result.user.displayName || "Google User");
+              handleGmailLogin(result.user.email || result.user.displayName || "Google User", true);
             }
           })
           .catch((err) => {
