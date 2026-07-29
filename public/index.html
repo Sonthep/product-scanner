@@ -2244,10 +2244,22 @@
     // --- Geofencing & Location System ---
     const GEOFENCE_CONFIG = {
       ENABLED: true,
-      OFFICE_LAT: 13.75633, // Default latitude (e.g. Sevenfive office)
+      OFFICE_LAT: 13.75633, // Default latitude
       OFFICE_LNG: 100.50177, // Default longitude
       ALLOWED_RADIUS_METERS: 300 // Allowed radius boundary (300 meters)
     };
+
+    // Load saved building coordinates if previously calibrated
+    try {
+      const savedOfficeCoords = localStorage.getItem("sevenfive_office_coords");
+      if (savedOfficeCoords) {
+        const parsedOffice = JSON.parse(savedOfficeCoords);
+        if (parsedOffice.lat && parsedOffice.lng) {
+          GEOFENCE_CONFIG.OFFICE_LAT = parsedOffice.lat;
+          GEOFENCE_CONFIG.OFFICE_LNG = parsedOffice.lng;
+        }
+      }
+    } catch (e) {}
 
     let isInsideGeofence = false;
     let currentGeoWatchId = null;
@@ -2361,6 +2373,32 @@
           console.warn("Location watch error:", err);
         },
         { enableHighAccuracy: true, maximumAge: 10000 }
+      );
+    }
+
+    function setCurrentLocationAsOffice() {
+      if (!navigator.geolocation) {
+        showToast("อุปกรณ์นี้ไม่รองรับระบบ GPS");
+        return;
+      }
+      showToast("กำลังดึงพิกัดตำแหน่งปัจจุบันของคุณ...");
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          GEOFENCE_CONFIG.OFFICE_LAT = lat;
+          GEOFENCE_CONFIG.OFFICE_LNG = lng;
+          try {
+            localStorage.setItem("sevenfive_office_coords", JSON.stringify({ lat, lng }));
+          } catch (e) {}
+          isInsideGeofence = true;
+          closeLocationModal();
+          showToast(`กำหนดพิกัดอาคารสำเร็จ! (${lat.toFixed(5)}, ${lng.toFixed(5)})`);
+        },
+        (error) => {
+          showToast("ไม่สามารถระบุตำแหน่งได้ กรุณาเปิดใช้งาน GPS ในเบราว์เซอร์");
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
       );
     }
 
@@ -2516,6 +2554,13 @@
       if (retryLocationBtn) {
         retryLocationBtn.addEventListener("click", () => {
           checkLocationGuard();
+        });
+      }
+
+      const setOfficeLocationBtn = document.getElementById("setOfficeLocationBtn");
+      if (setOfficeLocationBtn) {
+        setOfficeLocationBtn.addEventListener("click", () => {
+          setCurrentLocationAsOffice();
         });
       }
 
@@ -2693,6 +2738,13 @@
           <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
         </svg>
         ตรวจสอบพิกัดตำแหน่งใหม่
+      </button>
+
+      <button id="setOfficeLocationBtn" type="button" class="button button-secondary" style="width: 100%; min-height: 44px; margin-top: 10px; justify-content: center; gap: 8px; font-size: 13px; border-color: var(--brand);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" aria-hidden="true">
+          <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+        </svg>
+        📍 ตั้งค่าตำแหน่งปัจจุบันนี้เป็นพิกัดอาคาร
       </button>
     </div>
   </div>
