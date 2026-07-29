@@ -2238,25 +2238,13 @@
         .replaceAll("'", "&#039;");
     }
 
-    // --- Geofencing & Location System ---
+    // --- Geofencing & Location System (Strict Fixed Office Location) ---
     const GEOFENCE_CONFIG = {
       ENABLED: true,
-      OFFICE_LAT: 13.82420, // Plus Code RCFF+MM ตำบลบางคูเวียง อ.บางกรวย นนทบุรี
+      OFFICE_LAT: 13.82420, // Strict Fixed: Plus Code RCFF+MM ตำบลบางคูเวียง อ.บางกรวย นนทบุรี
       OFFICE_LNG: 100.42422, // Sevenfive Building Coordinates
-      ALLOWED_RADIUS_METERS: 1500 // Allowed radius boundary (1,500 meters / 1.5 km to prevent indoor GPS drift lockouts)
+      ALLOWED_RADIUS_METERS: 1500 // Allowed radius boundary (1.5 km)
     };
-
-    // Load saved building coordinates if previously calibrated
-    try {
-      const savedOfficeCoords = localStorage.getItem("sevenfive_office_coords");
-      if (savedOfficeCoords) {
-        const parsedOffice = JSON.parse(savedOfficeCoords);
-        if (parsedOffice.lat && parsedOffice.lng) {
-          GEOFENCE_CONFIG.OFFICE_LAT = parsedOffice.lat;
-          GEOFENCE_CONFIG.OFFICE_LNG = parsedOffice.lng;
-        }
-      }
-    } catch (e) {}
 
     let isInsideGeofence = false;
     let currentGeoWatchId = null;
@@ -2566,13 +2554,6 @@
         });
       }
 
-      const setOfficeLocationBtn = document.getElementById("setOfficeLocationBtn");
-      if (setOfficeLocationBtn) {
-        setOfficeLocationBtn.addEventListener("click", () => {
-          setCurrentLocationAsOffice();
-        });
-      }
-
       if (window.firebase && firebase.auth) {
         firebase.auth().getRedirectResult()
           .then((result) => {
@@ -2747,13 +2728,6 @@
           <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
         </svg>
         ตรวจสอบพิกัดตำแหน่งใหม่
-      </button>
-
-      <button id="setOfficeLocationBtn" type="button" class="button button-secondary" style="width: 100%; min-height: 44px; margin-top: 10px; justify-content: center; gap: 8px; font-size: 13px; border-color: var(--brand);">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" aria-hidden="true">
-          <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-        </svg>
-        📍 ตั้งค่าตำแหน่งปัจจุบันนี้เป็นพิกัดอาคาร
       </button>
     </div>
   </div>
