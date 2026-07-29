@@ -2421,10 +2421,19 @@
       return true;
     }
 
+    function logUserLoginToCloud(type, identifier) {
+      if (!API_URL || !type || !identifier) return;
+      try {
+        const logUrl = `${API_URL}?action=logLogin&type=${encodeURIComponent(type)}&identifier=${encodeURIComponent(identifier)}&t=${Date.now()}`;
+        fetch(logUrl, { method: "GET", mode: "no-cors", cache: "no-store" }).catch(() => {});
+      } catch (e) {}
+    }
+
     function saveUserState(userObj) {
       try {
         if (userObj) {
           localStorage.setItem(AUTH_KEY, JSON.stringify(userObj));
+          logUserLoginToCloud(userObj.type, userObj.identifier);
         } else {
           localStorage.removeItem(AUTH_KEY);
         }
