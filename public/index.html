@@ -2241,19 +2241,134 @@
         .replaceAll("'", "&#039;");
     }
 
-    // --- Login System Logic ---
-    const AUTH_KEY = "sevenfive_scanner_user";
+    // --- Geofencing & Location System ---
+    const GEOFENCE_CONFIG = {
+      ENABLED: true,
+      OFFICE_LAT: 13.75633, // Default latitude (e.g. Sevenfive office)
+      OFFICE_LNG: 100.50177, // Default longitude
+      ALLOWED_RADIUS_METERS: 300 // Allowed radius boundary (300 meters)
+    };
 
-    function getUserState() {
-      try {
-        const saved = localStorage.getItem(AUTH_KEY);
-        return saved ? JSON.parse(saved) : null;
-      } catch (e) {
-        return null;
+    let isInsideGeofence = false;
+    let currentGeoWatchId = null;
+
+    function calculateDistanceMeters(lat1, lon1, lat2, lon2) {
+      const R = 6371000;
+      const dLat = (lat2 - lat1) * (Math.PI / 180);
+      const dLon = (lon2 - lon1) * (Math.PI / 180);
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * (Math.PI / 180)) *
+          Math.cos(lat2 * (Math.PI / 180)) *
+          Math.sin(dLon / 2) *
+          Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    }
+
+    function showLocationModal(message) {
+      const modal = document.getElementById("locationModal");
+      const desc = document.getElementById("locationModalDesc");
+      if (desc && message) desc.textContent = message;
+      if (modal) {
+        modal.removeAttribute("hidden");
+        document.body.style.overflow = "hidden";
       }
     }
 
+    function closeLocationModal() {
+      const modal = document.getElementById("locationModal");
+      if (modal) {
+        modal.setAttribute("hidden", "");
+        document.body.style.overflow = "";
+      }
+    }
+
+    function checkLocationGuard(callback) {
+      if (!GEOFENCE_CONFIG.ENABLED) {
+        isInsideGeofence = true;
+        closeLocationModal();
+        if (callback) callback(true);
+        return;
+      }
+
+      if (!navigator.geolocation) {
+        showLocationModal("อุปกรณ์นี้ไม่รองรับระบบระบุตำแหน่ง GPS");
+        if (callback) callback(false);
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const userLat = position.coords.latitude;
+          const userLng = position.coords.longitude;
+          const distance = calculateDistanceMeters(
+            userLat,
+            userLng,
+            GEOFENCE_CONFIG.OFFICE_LAT,
+            GEOFENCE_CONFIG.OFFICE_LNG
+          );
+
+          if (distance <= GEOFENCE_CONFIG.ALLOWED_RADIUS_METERS) {
+            isInsideGeofence = true;
+            closeLocationModal();
+            if (callback) callback(true);
+          } else {
+            isInsideGeofence = false;
+            showLocationModal(
+              `คุณอยู่นอกพื้นที่อาคารที่กำหนด (ห่างจากอาคารประมาณ ${Math.round(distance)} เมตร)`
+            );
+            if (callback) callback(false);
+          }
+        },
+        (error) => {
+          isInsideGeofence = false;
+          let msg = "กรุณาเปิดระบบ GPS และอนุญาตการเข้าถึงตำแหน่งในเบราว์เซอร์เพื่อใช้งานในพื้นที่อาคาร";
+          if (error.code === error.PERMISSION_DENIED) {
+            msg = "ปฏิเสธการเข้าถึงตำแหน่ง! คุณต้องอนุญาตการเข้าถึงตำแหน่งในเบราว์เซอร์จึงจะสามารถใช้งานในพื้นที่อาคารได้";
+          }
+          showLocationModal(msg);
+          if (callback) callback(false);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
+      );
+    }
+
+    function startContinuousLocationMonitoring() {
+      if (!navigator.geolocation || !GEOFENCE_CONFIG.ENABLED) return;
+      if (currentGeoWatchId !== null) navigator.geolocation.clearWatch(currentGeoWatchId);
+
+      currentGeoWatchId = navigator.geolocation.watchPosition(
+        (position) => {
+          const distance = calculateDistanceMeters(
+            position.coords.latitude,
+            position.coords.longitude,
+            GEOFENCE_CONFIG.OFFICE_LAT,
+            GEOFENCE_CONFIG.OFFICE_LNG
+          );
+          if (distance <= GEOFENCE_CONFIG.ALLOWED_RADIUS_METERS) {
+            isInsideGeofence = true;
+            closeLocationModal();
+          } else {
+            isInsideGeofence = false;
+            if (typeof stopCamera === "function") stopCamera();
+            showLocationModal(
+              `คุณอยู่นอกพื้นที่อาคารที่กำหนด (ห่างจากอาคารประมาณ ${Math.round(distance)} เมตร)`
+            );
+          }
+        },
+        (err) => {
+          console.warn("Location watch error:", err);
+        },
+        { enableHighAccuracy: true, maximumAge: 10000 }
+      );
+    }
+
     function checkAuthGuard() {
+      if (!isInsideGeofence && GEOFENCE_CONFIG.ENABLED) {
+        checkLocationGuard();
+        return false;
+      }
       const user = getUserState();
       if (!user || user.type === "guest") {
         openLoginModal();
@@ -2393,6 +2508,16 @@
     // Initialize Login UI Event Listeners
     document.addEventListener("DOMContentLoaded", () => {
       updateUserUI();
+
+      checkLocationGuard();
+      startContinuousLocationMonitoring();
+
+      const retryLocationBtn = document.getElementById("retryLocationBtn");
+      if (retryLocationBtn) {
+        retryLocationBtn.addEventListener("click", () => {
+          checkLocationGuard();
+        });
+      }
 
       if (window.firebase && firebase.auth) {
         firebase.auth().getRedirectResult()
@@ -2542,6 +2667,33 @@
       </div>
 
       <button id="continueGuestBtn" type="button" class="button-guest" style="display: none !important;">เข้าใช้งานแบบผู้เยี่ยมชม (Guest)</button>
+    </div>
+  </div>
+
+  <!-- Location Lock Modal -->
+  <div id="locationModal" class="login-modal-overlay" hidden>
+    <div class="login-modal-card" style="text-align: center;">
+      <div style="width: 60px; height: 60px; margin: 0 auto 16px; border-radius: 50%; background: #fff0ee; border: 1px solid #ffd0cb; color: #b42318; display: grid; place-items: center; box-shadow: 0 4px 14px rgba(180, 35, 24, 0.12);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="28" height="28" aria-hidden="true">
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+          <circle cx="12" cy="10" r="3"/>
+          <line x1="3" y1="3" x2="21" y2="21" stroke-width="2.5"/>
+        </svg>
+      </div>
+
+      <div class="login-header" style="margin-bottom: 14px;">
+        <h2 style="font-size: 20px; font-weight: 800; color: var(--text);">จำกัดการใช้งานเฉพาะในอาคาร</h2>
+        <p id="locationModalDesc" style="margin-top: 8px; font-size: 13px; color: var(--muted); line-height: 1.5;">
+          กรุณาเปิดระบบ GPS และอยู่ในพื้นที่อาคารที่กำหนดเพื่อเข้าใช้งานระบบ
+        </p>
+      </div>
+
+      <button id="retryLocationBtn" type="button" class="button button-primary" style="width: 100%; min-height: 48px; justify-content: center; gap: 8px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" aria-hidden="true">
+          <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+        </svg>
+        ตรวจสอบพิกัดตำแหน่งใหม่
+      </button>
     </div>
   </div>
 
