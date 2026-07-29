@@ -883,6 +883,14 @@
       margin-bottom: 12px;
     }
 
+    .sku-and-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      min-width: 0;
+    }
+
     .sku-chip {
       min-width: 0;
       display: inline-flex;
@@ -895,6 +903,20 @@
       font-size: 12px;
       font-weight: 850;
       overflow-wrap: anywhere;
+    }
+
+    .brand-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 11px;
+      border-radius: 999px;
+      background: #f0f4f2;
+      border: 1px solid var(--border);
+      color: var(--brand-dark);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
     }
 
     .copy-button {
@@ -930,22 +952,64 @@
       overflow-wrap: anywhere;
     }
 
-    .price-label {
+    .price-card-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
       margin-top: 18px;
-      color: var(--muted);
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
     }
 
-    .product-price {
-      margin-top: 3px;
-      color: var(--brand);
-      font-size: 29px;
+    .price-card {
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: var(--surface-soft);
+      border: 1px solid var(--border);
+      transition: all 160ms ease;
+    }
+
+    .price-card-excl {
+      background: #f4f7f5;
+      border-color: #dce5e1;
+    }
+
+    .price-card-incl {
+      background: linear-gradient(135deg, rgba(12, 114, 85, 0.08), rgba(12, 114, 85, 0.02));
+      border-color: rgba(12, 114, 85, 0.22);
+      box-shadow: 0 4px 14px rgba(12, 114, 85, 0.05);
+    }
+
+    .price-card-label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+    }
+
+    .price-card-label.vat-highlight {
+      color: var(--brand-strong);
+    }
+
+    .price-card-amount {
+      margin-top: 6px;
+      font-size: 18px;
       font-weight: 900;
-      line-height: 1.25;
-      letter-spacing: -0.6px;
+      color: var(--text);
+      line-height: 1.2;
+    }
+
+    .price-card-amount.vat-amount {
+      font-size: 22px;
+      color: var(--brand);
+    }
+
+    @media (max-width: 480px) {
+      .price-card-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
     }
 
     .product-actions {
@@ -1542,7 +1606,12 @@
 
           <div class="product-content">
             <div class="sku-row">
-              <div id="productSku" class="sku-chip">-</div>
+              <div class="sku-and-brand">
+                <div id="productSku" class="sku-chip">-</div>
+                <div id="productBrandBadge" class="brand-chip" hidden>
+                  <span id="productBrandText" class="brand-chip-name"></span>
+                </div>
+              </div>
               <button id="copyButton" class="copy-button" type="button" aria-label="คัดลอก SKU" title="คัดลอก SKU">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
                   <rect x="8" y="8" width="11" height="11" rx="2"/>
@@ -1552,8 +1621,30 @@
             </div>
 
             <h3 id="productTitle" class="product-title">-</h3>
-            <div class="price-label">ราคาสินค้า</div>
-            <div id="productPrice" class="product-price">-</div>
+
+            <div class="price-card-grid">
+              <div class="price-card price-card-excl">
+                <div class="price-card-label">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13" aria-hidden="true">
+                    <rect x="2" y="5" width="20" height="14" rx="2"/>
+                    <line x1="2" y1="10" x2="22" y2="10"/>
+                  </svg>
+                  ราคาป้าย (ก่อน VAT)
+                </div>
+                <div id="productPrice" class="price-card-amount">-</div>
+              </div>
+
+              <div class="price-card price-card-incl">
+                <div class="price-card-label vat-highlight">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13" aria-hidden="true">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    <path d="m9 12 2 2 4-4"/>
+                  </svg>
+                  ราคารวม VAT 7%
+                </div>
+                <div id="productPriceVat" class="price-card-amount vat-amount">-</div>
+              </div>
+            </div>
 
             <div class="product-actions">
               <button id="scanAgainButton" class="button button-primary" type="button">
@@ -1631,7 +1722,8 @@
         "cameraEmpty", "startCameraButton", "cameraSelect", "torchButton",
         "uploadButton", "fileInput", "skuInput", "searchButton", "feedback",
         "emptyResult", "productResult", "productImage", "productSku",
-        "productTitle", "productPrice", "copyButton", "scanAgainButton",
+        "productBrandBadge", "productBrandText",
+        "productTitle", "productPrice", "productPriceVat", "copyButton", "scanAgainButton",
         "sourceNote", "resultCard", "toast"
       ].forEach(id => {
         elements[id] = document.getElementById(id);
@@ -1708,6 +1800,7 @@
     }
 
     async function startCamera() {
+      if (!checkAuthGuard()) return;
       if (isCameraRunning || isSearching) {
         return;
       }
@@ -1822,6 +1915,7 @@
     }
 
     async function handleFileScan(event) {
+      if (!checkAuthGuard()) return;
       const file = event.target.files?.[0];
       if (!file || isSearching) {
         return;
@@ -1870,6 +1964,7 @@
     }
 
     async function switchMode(mode) {
+      if (!checkAuthGuard()) return;
       const isCameraMode = mode === "camera";
 
       elements.cameraTab.classList.toggle("active", isCameraMode);
@@ -1888,6 +1983,7 @@
     }
 
     async function searchProduct(options = {}) {
+      if (!checkAuthGuard()) return;
       if (isSearching) {
         return;
       }
@@ -1955,6 +2051,51 @@
       elements.productSku.textContent = product.sku || "-";
       elements.productTitle.textContent = product.title || "-";
       elements.productPrice.textContent = formatPrice(product.price);
+
+      // Set Brand Name (with automatic SKU fallback)
+      let brandName = product.brand || product.Brand || product["brand"] || product["Brand"] || product.vendor || product.Vendor || product.brandName || "";
+
+      if (!brandName && product.sku) {
+        const skuUpper = String(product.sku).trim().toUpperCase();
+        if (/^HAT/i.test(skuUpper)) brandName = "HATCO";
+        else if (/^NTS/i.test(skuUpper)) brandName = "NTS";
+        else if (/^BER/i.test(skuUpper)) brandName = "BERJAYA";
+        else if (/^BEN/i.test(skuUpper)) brandName = "BENCHMARK";
+        else if (/^SIR/i.test(skuUpper)) brandName = "SIRMAN";
+        else if (/^ROB/i.test(skuUpper)) brandName = "ROBOT COUPE";
+        else if (/^SKIF/i.test(skuUpper)) brandName = "SKIPIO";
+        else if (/^LKK/i.test(skuUpper)) brandName = "LKK";
+        else if (/^JUST/i.test(skuUpper)) brandName = "JUSTA";
+        else if (/^STA/i.test(skuUpper)) brandName = "STAR";
+        else {
+          const match = skuUpper.match(/^([A-Z]{2,10})/);
+          if (match && match[1]) brandName = match[1];
+        }
+      }
+
+      if (elements.productBrandBadge) {
+        if (brandName) {
+          elements.productBrandBadge.removeAttribute("hidden");
+          if (elements.productBrandText) {
+            elements.productBrandText.textContent = brandName;
+          }
+        } else {
+          elements.productBrandBadge.setAttribute("hidden", "");
+        }
+      }
+
+      // Get Include VAT 7% value from API or calculate fallback (price * 1.07)
+      let vatVal = product.includeVat || product.include_vat || product.priceIncludeVat || product["include vat 7%"] || product["includeVat7"] || product["include_vat_7"];
+      if (vatVal === undefined || vatVal === null || vatVal === "") {
+        const numPrice = Number(String(product.price || "").replace(/,/g, "").replace(/[^\d.-]/g, ""));
+        if (!isNaN(numPrice) && numPrice > 0) {
+          vatVal = Math.round(numPrice * 1.07);
+        }
+      }
+      if (elements.productPriceVat) {
+        elements.productPriceVat.textContent = formatPrice(vatVal);
+      }
+
       elements.productImage.src = product.imageUrl || fallbackImage();
       elements.productImage.onerror = () => {
         elements.productImage.onerror = null;
@@ -1994,6 +2135,7 @@
     }
 
     async function copySku() {
+      if (!checkAuthGuard()) return;
       const sku = elements.productSku.textContent.trim();
       if (!sku || sku === "-") {
         return;
@@ -2111,6 +2253,16 @@
       }
     }
 
+    function checkAuthGuard() {
+      const user = getUserState();
+      if (!user || user.type === "guest") {
+        openLoginModal();
+        showToast("กรุณาเข้าสู่ระบบก่อนใช้งาน");
+        return false;
+      }
+      return true;
+    }
+
     function saveUserState(userObj) {
       try {
         if (userObj) {
@@ -2136,19 +2288,30 @@
         if (btnTextEl) btnTextEl.textContent = "ออกจากระบบ";
       } else {
         if (dotEl) dotEl.classList.remove("active");
-        if (textEl) textEl.textContent = "ผู้เยี่ยมชม (Guest)";
+        if (textEl) textEl.textContent = "ยังไม่ได้เข้าสู่ระบบ";
         if (btnTextEl) btnTextEl.textContent = "เข้าสู่ระบบ";
       }
     }
 
     function openLoginModal() {
       const modal = document.getElementById("loginModal");
-      if (modal) modal.removeAttribute("hidden");
+      if (modal) {
+        modal.removeAttribute("hidden");
+        document.body.style.overflow = "hidden";
+      }
     }
 
     function closeLoginModal() {
+      const user = getUserState();
+      if (!user || user.type === "guest") {
+        showToast("กรุณาเข้าสู่ระบบก่อนเริ่มใช้งาน");
+        return;
+      }
       const modal = document.getElementById("loginModal");
-      if (modal) modal.setAttribute("hidden", "");
+      if (modal) {
+        modal.setAttribute("hidden", "");
+        document.body.style.overflow = "";
+      }
     }
 
     function handleGmailLogin(email) {
@@ -2219,6 +2382,11 @@
     document.addEventListener("DOMContentLoaded", () => {
       updateUserUI();
 
+      const user = getUserState();
+      if (!user || user.type === "guest") {
+        openLoginModal();
+      }
+
       const loginTriggerBtn = document.getElementById("loginTriggerBtn");
       const closeLoginBtn = document.getElementById("closeLoginBtn");
       const continueGuestBtn = document.getElementById("continueGuestBtn");
@@ -2234,10 +2402,12 @@
 
       if (loginTriggerBtn) {
         loginTriggerBtn.addEventListener("click", () => {
-          const user = getUserState();
-          if (user && user.type !== "guest") {
+          const currentUser = getUserState();
+          if (currentUser && currentUser.type !== "guest") {
             saveUserState(null);
+            if (typeof stopCamera === "function") stopCamera();
             showToast("ออกจากระบบแล้ว");
+            openLoginModal();
           } else {
             openLoginModal();
           }
@@ -2288,12 +2458,12 @@
   <!-- Login Modal -->
   <div id="loginModal" class="login-modal-overlay" hidden>
     <div class="login-modal-card">
-      <button id="closeLoginBtn" type="button" class="modal-close-btn" aria-label="ปิด">✕</button>
+      <button id="closeLoginBtn" type="button" class="modal-close-btn" aria-label="ปิด" style="display: none !important;">✕</button>
 
       <div class="login-header">
         <img src="logo/CI_logo_75_2026-01.avif" alt="Sevenfive Logo" class="login-logo">
         <h2>เข้าสู่ระบบ / Sign In</h2>
-        <p>เลือกวิธีเข้าสู่ระบบเพื่อเริ่มใช้งาน</p>
+        <p>กรุณาเข้าสู่ระบบเพื่อเริ่มใช้งานแอปพลิเคชัน</p>
       </div>
 
       <div class="login-method-tabs">
@@ -2347,7 +2517,7 @@
         </div>
       </div>
 
-      <button id="continueGuestBtn" type="button" class="button-guest">เข้าใช้งานแบบผู้เยี่ยมชม (Guest)</button>
+      <button id="continueGuestBtn" type="button" class="button-guest" style="display: none !important;">เข้าใช้งานแบบผู้เยี่ยมชม (Guest)</button>
     </div>
   </div>
 
