@@ -2363,17 +2363,29 @@
         return;
       }
       const provider = new firebase.auth.GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+
       firebase.auth().signInWithPopup(provider)
         .then((result) => {
           const user = result.user;
-          handleGmailLogin(user.email || user.displayName || "Google User");
+          if (user) {
+            handleGmailLogin(user.email || user.displayName || "Google User");
+          }
         })
         .catch((error) => {
           console.error("Firebase auth error:", error);
           if (error.code === "auth/popup-closed-by-user") {
             showToast("ยกเลิกการเข้าสู่ระบบ");
+          } else if (
+            error.code === "auth/popup-blocked" ||
+            error.code === "auth/cancelled-popup-request" ||
+            String(error.message || "").includes("sessionStorage") ||
+            String(error.message || "").includes("initial state")
+          ) {
+            showToast("เบราว์เซอร์บล็อกป๊อปอัป กำลังเข้าสู่ระบบ...");
+            firebase.auth().signInWithRedirect(provider);
           } else {
-            showToast("เข้าสู่ระบบไม่สำเร็จ: " + (error.message || "เกิดข้อผิดพลาด"));
+            showToast("กรุณากรอกอีเมล Gmail ในช่องพิมพ์ด้านล่างแทน");
           }
         });
     }
@@ -2381,6 +2393,18 @@
     // Initialize Login UI Event Listeners
     document.addEventListener("DOMContentLoaded", () => {
       updateUserUI();
+
+      if (window.firebase && firebase.auth) {
+        firebase.auth().getRedirectResult()
+          .then((result) => {
+            if (result && result.user) {
+              handleGmailLogin(result.user.email || result.user.displayName || "Google User");
+            }
+          })
+          .catch((err) => {
+            console.warn("Redirect result error:", err);
+          });
+      }
 
       const user = getUserState();
       if (!user || user.type === "guest") {
