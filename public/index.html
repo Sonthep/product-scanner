@@ -2402,6 +2402,18 @@
       );
     }
 
+    // --- Login & User State ---
+    const AUTH_KEY = "sevenfive_scanner_user";
+
+    function getUserState() {
+      try {
+        const saved = localStorage.getItem(AUTH_KEY);
+        return saved ? JSON.parse(saved) : null;
+      } catch (e) {
+        return null;
+      }
+    }
+
     function checkAuthGuard() {
       if (!isInsideGeofence && GEOFENCE_CONFIG.ENABLED) {
         checkLocationGuard();
