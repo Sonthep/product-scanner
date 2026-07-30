@@ -2093,7 +2093,8 @@
         elements.productPriceVat.textContent = formatPrice(vatVal);
       }
 
-      elements.productImage.src = product.imageUrl || fallbackImage();
+      const imgSrc = product.imageUrl || product["Image URL"] || product["image_url"] || product["Image"] || product["image"] || product["รูปภาพ"] || product["URL รูปภาพ"] || fallbackImage();
+      elements.productImage.src = imgSrc;
       elements.productImage.onerror = () => {
         elements.productImage.onerror = null;
         elements.productImage.src = fallbackImage();
