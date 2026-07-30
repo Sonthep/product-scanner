@@ -689,6 +689,29 @@
       color: var(--success);
     }
 
+    .feedback-retry-btn {
+      margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border: 0;
+      border-radius: 8px;
+      background: var(--brand);
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 160ms ease;
+      box-shadow: 0 2px 6px rgba(12, 114, 85, 0.2);
+    }
+
+    .feedback-retry-btn:hover {
+      background: var(--brand-dark);
+      transform: translateY(-1px);
+    }
+
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
@@ -2179,12 +2202,32 @@
       }
     }
 
-    function setFeedback(message, type = "") {
-      elements.feedback.textContent = message;
+    function setFeedback(message, type = "", showRetryButton = true) {
+      elements.feedback.innerHTML = "";
       elements.feedback.className = "feedback";
 
       if (message && type) {
         elements.feedback.classList.add(type);
+
+        const textSpan = document.createElement("span");
+        textSpan.style.flex = "1 1 auto";
+        textSpan.textContent = message;
+        elements.feedback.appendChild(textSpan);
+
+        if (type === "error" && showRetryButton) {
+          const retryBtn = document.createElement("button");
+          retryBtn.type = "button";
+          retryBtn.className = "feedback-retry-btn";
+          retryBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13" aria-hidden="true">
+              <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/>
+              <path d="M7 9v6M10 8v8M14 8v8M17 9v6"/>
+            </svg>
+            สแกนอีกครั้ง
+          `;
+          retryBtn.addEventListener("click", () => resetForNextScan());
+          elements.feedback.appendChild(retryBtn);
+        }
       }
     }
 
