@@ -1992,7 +1992,7 @@
       if (clientProductCache.has(cacheKey)) {
         const cachedResult = clientProductCache.get(cacheKey);
         showProduct(cachedResult, options.source || "ค้นหาด้วย SKU");
-        setFeedback("พบข้อมูลสินค้าแล้ว", "success");
+        setFeedback("", "");
         return;
       }
 
@@ -2034,7 +2034,7 @@
 
         clientProductCache.set(cacheKey, result);
         showProduct(result, options.source || "ค้นหาด้วย SKU");
-        setFeedback("พบข้อมูลสินค้าแล้ว", "success");
+        setFeedback("", "");
       } catch (error) {
         console.error("Product API error:", error);
         setFeedback(`เชื่อมต่อฐานข้อมูลไม่สำเร็จ: ${error.message}`, "error");
