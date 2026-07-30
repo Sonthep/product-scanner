@@ -2450,7 +2450,8 @@
       if (user && user.type !== "guest") {
         if (dotEl) dotEl.classList.add("active");
         if (textEl) {
-          textEl.textContent = user.type === "gmail" ? `Email: ${user.identifier}` : `เบอร์โทร: ${user.identifier}`;
+          const isPhone = user.type === "phone";
+          textEl.textContent = isPhone ? `เบอร์โทร: ${user.identifier}` : `Email: ${user.identifier}`;
         }
         if (btnTextEl) btnTextEl.textContent = "ออกจากระบบ";
       } else {
