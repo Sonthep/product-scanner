@@ -1581,7 +1581,6 @@
         <div class="result-head">
           <div>
             <h2 id="resultTitle">ข้อมูลสินค้า</h2>
-            <p>ผลลัพธ์จากฐานข้อมูล</p>
           </div>
           <div id="productBrandBadge" class="brand-chip" hidden>
             <span id="productBrandText" class="brand-chip-name"></span>
@@ -1603,7 +1602,6 @@
         <div id="productResult" class="product-result">
           <div class="product-image-wrap">
             <img id="productImage" alt="รูปสินค้า">
-            <span class="found-badge">พบสินค้าแล้ว</span>
           </div>
 
           <div class="product-content">
@@ -1651,14 +1649,6 @@
                 </svg>
                 สแกนรายการถัดไป
               </button>
-            </div>
-
-            <div id="sourceNote" class="source-note">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
-                <circle cx="12" cy="12" r="9"/>
-                <path d="M12 11v5M12 8h.01"/>
-              </svg>
-              <span>ค้นหาจาก SKU</span>
             </div>
           </div>
         </div>
@@ -2100,7 +2090,9 @@
         elements.productImage.src = fallbackImage();
       };
 
-      elements.sourceNote.querySelector("span").textContent = source;
+      if (elements.sourceNote && elements.sourceNote.querySelector("span")) {
+        elements.sourceNote.querySelector("span").textContent = source;
+      }
       elements.emptyResult.hidden = true;
       elements.productResult.classList.add("show");
 
