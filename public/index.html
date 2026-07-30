@@ -656,12 +656,7 @@
     }
 
     .feedback::before {
-      flex: 0 0 auto;
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: currentColor;
-      content: "";
+      display: none;
     }
 
     .feedback.loading {
@@ -671,12 +666,15 @@
     }
 
     .feedback.loading::before {
+      display: inline-block;
+      flex: 0 0 auto;
       width: 14px;
       height: 14px;
       border: 2px solid currentColor;
       border-right-color: transparent;
       background: transparent;
       animation: spin 700ms linear infinite;
+      content: "";
     }
 
     .feedback.error {
@@ -1968,6 +1966,28 @@
       }
     }
 
+    function extractSkuFromInput(input) {
+      let text = String(input || "").trim();
+      if (!text) return "";
+
+      if (/^https?:\/\//i.test(text)) {
+        try {
+          const urlObj = new URL(text);
+          if (urlObj.searchParams.has("sku")) return urlObj.searchParams.get("sku").trim();
+          if (urlObj.searchParams.has("code")) return urlObj.searchParams.get("code").trim();
+          if (urlObj.searchParams.has("id")) return urlObj.searchParams.get("id").trim();
+
+          const pathname = urlObj.pathname.replace(/\/+$/, "");
+          const segments = pathname.split("/").filter(Boolean);
+          if (segments.length > 0) {
+            return segments[segments.length - 1].trim();
+          }
+        } catch (e) {}
+      }
+
+      return text;
+    }
+
     const clientProductCache = new Map();
 
     async function searchProduct(options = {}) {
@@ -1976,7 +1996,11 @@
         return;
       }
 
-      const sku = elements.skuInput.value.trim();
+      const rawInput = elements.skuInput.value.trim();
+      const sku = extractSkuFromInput(rawInput);
+      if (sku) {
+        elements.skuInput.value = sku;
+      }
 
       if (!sku) {
         setFeedback("กรุณากรอกหรือสแกน SKU ก่อนค้นหา", "error");
