@@ -1969,6 +1969,8 @@
       }
     }
 
+    const clientProductCache = new Map();
+
     async function searchProduct(options = {}) {
       if (!checkAuthGuard()) return;
       if (isSearching) {
@@ -1983,6 +1985,14 @@
           await switchMode("manual");
         }
         elements.skuInput.focus();
+        return;
+      }
+
+      const cacheKey = sku.toUpperCase();
+      if (clientProductCache.has(cacheKey)) {
+        const cachedResult = clientProductCache.get(cacheKey);
+        showProduct(cachedResult, options.source || "ค้นหาด้วย SKU");
+        setFeedback("พบข้อมูลสินค้าแล้ว", "success");
         return;
       }
 
@@ -2022,6 +2032,7 @@
           return;
         }
 
+        clientProductCache.set(cacheKey, result);
         showProduct(result, options.source || "ค้นหาด้วย SKU");
         setFeedback("พบข้อมูลสินค้าแล้ว", "success");
       } catch (error) {
