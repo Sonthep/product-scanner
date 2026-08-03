@@ -1,0 +1,19 @@
+npm install firebase
+
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyBtXjcE3kcfAdii_cxoa0OO6Cc7gsSNA3U",
+  authDomain: "sevenfive-product-scanner.firebaseapp.com",
+  projectId: "sevenfive-product-scanner",
+  storageBucket: "sevenfive-product-scanner.firebasestorage.app",
+  messagingSenderId: "23795689310",
+  appId: "1:23795689310:web:f0e43fcb6b720a80db91cf"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
