@@ -834,14 +834,22 @@
 
     .product-image-wrap {
       position: relative;
-      aspect-ratio: 16 / 11;
-      display: grid;
-      place-items: center;
+      aspect-ratio: 1 / 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       margin: 16px 16px 0;
       overflow: hidden;
       border-radius: 18px;
-      background:
-        linear-gradient(135deg, #f7f9f8, #edf2f0);
+      background: #ffffff;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: border-color 200ms ease, box-shadow 200ms ease;
+    }
+
+    .product-image-wrap:hover {
+      border-color: var(--brand);
+      box-shadow: 0 8px 24px rgba(12, 114, 85, 0.12);
     }
 
     .product-image-wrap img {
@@ -849,6 +857,36 @@
       height: 100%;
       object-fit: contain;
       padding: 14px;
+      mix-blend-mode: multiply;
+      transition: transform 250ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .product-image-wrap:hover img {
+      transform: scale(1.03);
+    }
+
+    .image-expand-hint {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 10px;
+      border-radius: 8px;
+      background: rgba(11, 35, 27, 0.72);
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 700;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      opacity: 0;
+      transition: opacity 180ms ease;
+      pointer-events: none;
+    }
+
+    .product-image-wrap:hover .image-expand-hint {
+      opacity: 1;
     }
 
     .found-badge {
@@ -1362,6 +1400,75 @@
       animation: modalSlide 250ms cubic-bezier(0.16, 1, 0.3, 1);
     }
 
+    .image-modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(8, 24, 19, 0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      animation: fadeIn 200ms ease;
+      cursor: zoom-out;
+    }
+
+    .image-modal-overlay[hidden] {
+      display: none !important;
+    }
+
+    .image-modal-content {
+      position: relative;
+      max-width: 92vw;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: default;
+    }
+
+    .image-modal-content img {
+      max-width: 90vw;
+      max-height: 80vh;
+      object-fit: contain;
+      border-radius: 16px;
+      background: #ffffff;
+      padding: 16px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+    }
+
+    .image-modal-close {
+      position: absolute;
+      top: -46px;
+      right: -10px;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 0;
+      background: rgba(255, 255, 255, 0.25);
+      color: #ffffff;
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      transition: background 160ms ease;
+    }
+
+    .image-modal-close:hover {
+      background: rgba(255, 255, 255, 0.45);
+    }
+
+    .image-modal-caption {
+      margin-top: 14px;
+      color: rgba(255, 255, 255, 0.92);
+      font-size: 14px;
+      font-weight: 700;
+      text-align: center;
+    }
+
     @keyframes modalSlide {
       from { transform: translateY(18px) scale(0.96); opacity: 0; }
       to { transform: translateY(0) scale(1); opacity: 1; }
@@ -1795,8 +1902,14 @@
         </div>
 
         <div id="productResult" class="product-result">
-          <div class="product-image-wrap">
+          <div class="product-image-wrap" id="productImageWrap" title="คลิกเพื่อดูรูปขนาดเต็ม">
             <img id="productImage" alt="รูปสินค้า">
+            <div class="image-expand-hint">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+              </svg>
+              ดูรูปเต็ม
+            </div>
           </div>
 
           <div class="product-content">
@@ -1904,13 +2017,21 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+  <div id="imageModal" class="image-modal-overlay" hidden>
+    <div class="image-modal-content">
+      <button type="button" id="imageModalClose" class="image-modal-close" aria-label="ปิด">&times;</button>
+      <img id="imageModalImg" alt="รูปสินค้าขนาดเต็ม">
+      <div id="imageModalTitle" class="image-modal-caption"></div>
+    </div>
+  </div>
+
   <script>
     /*
       ใส่ Apps Script Web App URL ตรงนี้
       URL ต้องลงท้ายด้วย /exec
     */
     const API_URL =
-      "https://script.google.com/macros/s/AKfycbxmQQ6idgylY9PWwa-Lwwo6IDtaA8xpIt9bP05bsfp6lRjBrRnwHWA-3cGMvLdhVYt2/exec";
+      "https://script.google.com/macros/s/AKfycbwVsl-2NH_SkXxdY2jdlxaom4ob0xrUfqUu99dhbYaLvFw2O74hpGeue625yvlQWy-s/exec";
 
     const SCAN_CONFIG = {
       fps: 15,
@@ -1954,14 +2075,37 @@
         "cameraTab", "manualTab", "cameraPanel", "manualPanel", "cameraFrame",
         "cameraEmpty", "startCameraButton", "cameraSelect", "torchButton",
         "uploadButton", "fileInput", "skuInput", "searchButton", "feedback",
-        "emptyResult", "productResult", "productImage", "productSku",
+        "emptyResult", "productResult", "productImage", "productImageWrap", "productSku",
         "productBrandBadge", "productBrandText",
         "productTitle", "productPrice", "productPriceVat", "copyButton", "scanAgainButton",
         "sourceNote", "resultCard", "toast",
         "discountCalculator", "discountPercentInput", "discountBadge", "quickDiscounts",
-        "discountResultCard", "discountSavedText", "discountExclText", "discountInclText"
+        "discountResultCard", "discountSavedText", "discountExclText", "discountInclText",
+        "imageModal", "imageModalClose", "imageModalImg", "imageModalTitle"
       ].forEach(id => {
         elements[id] = document.getElementById(id);
+      });
+
+      if (elements.productImageWrap) {
+        elements.productImageWrap.addEventListener("click", openImageModal);
+      }
+
+      if (elements.imageModalClose) {
+        elements.imageModalClose.addEventListener("click", closeImageModal);
+      }
+
+      if (elements.imageModal) {
+        elements.imageModal.addEventListener("click", event => {
+          if (event.target === elements.imageModal) {
+            closeImageModal();
+          }
+        });
+      }
+
+      document.addEventListener("keydown", event => {
+        if (event.key === "Escape" && elements.imageModal && !elements.imageModal.hidden) {
+          closeImageModal();
+        }
       });
 
       scanner = new Html5Qrcode("reader", {
@@ -2340,16 +2484,32 @@
     let currentRawPrice = 0;
     let currentVatPrice = 0;
 
+    function isValidValue(val) {
+      if (val === null || val === undefined) return false;
+      const str = String(val).trim();
+      if (!str || str === "" || /^#(N\/A|VALUE!|REF!|NAME\?|NULL!|NUM!|DIV\/0!)/i.test(str)) {
+        return false;
+      }
+      return true;
+    }
+
     function showProduct(product, source) {
       elements.productSku.textContent = product.sku || "-";
       elements.productTitle.textContent = product.title || "-";
-      elements.productPrice.textContent = formatPrice(product.price);
 
-      const rawPriceNum = Number(String(product.price || "").replace(/,/g, "").replace(/[^\d.-]/g, ""));
+      const rawPriceVal = isValidValue(product.price) ? product.price : (isValidValue(product.Price) ? product.Price : null);
+      elements.productPrice.textContent = formatPrice(rawPriceVal);
+
+      const rawPriceNum = rawPriceVal !== null ? Number(String(rawPriceVal).replace(/,/g, "").replace(/[^\d.-]/g, "")) : 0;
       currentRawPrice = isNaN(rawPriceNum) ? 0 : rawPriceNum;
 
-      // Set Brand Name (with automatic SKU fallback)
-      let brandName = product.brand || product.Brand || product["brand"] || product["Brand"] || product.vendor || product.Vendor || product.brandName || "";
+      // Set Brand Name (with automatic SKU fallback & #N/A filtering)
+      let brandName = "";
+      ["brand", "Brand", "vendor", "Vendor", "brandName"].forEach(k => {
+        if (!brandName && isValidValue(product[k])) {
+          brandName = String(product[k]).trim();
+        }
+      });
 
       if (!brandName && product.sku) {
         const skuUpper = String(product.sku).trim().toUpperCase();
@@ -2381,13 +2541,18 @@
       }
 
       // Get Include VAT 7% value from API or calculate fallback (price * 1.07)
-      let vatVal = product.includeVat || product.include_vat || product.priceIncludeVat || product["include vat 7%"] || product["includeVat7"] || product["include_vat_7"];
-      if (vatVal === undefined || vatVal === null || vatVal === "") {
-        if (!isNaN(currentRawPrice) && currentRawPrice > 0) {
-          vatVal = Math.round(currentRawPrice * 1.07);
+      let vatVal = null;
+      ["includeVat", "include_vat", "priceIncludeVat", "include vat 7%", "includeVat7", "include_vat_7"].forEach(k => {
+        if (vatVal === null && isValidValue(product[k])) {
+          vatVal = product[k];
         }
+      });
+
+      if (vatVal === null && currentRawPrice > 0) {
+        vatVal = Math.round(currentRawPrice * 1.07);
       }
-      const vatNum = Number(String(vatVal || "").replace(/,/g, "").replace(/[^\d.-]/g, ""));
+
+      const vatNum = vatVal !== null ? Number(String(vatVal).replace(/,/g, "").replace(/[^\d.-]/g, "")) : 0;
       currentVatPrice = isNaN(vatNum) ? 0 : vatNum;
 
       if (elements.productPriceVat) {
@@ -2396,7 +2561,14 @@
 
       updateDiscountCalculation();
 
-      const imgSrc = product.imageUrl || product["Image URL"] || product["image_url"] || product["Image"] || product["image"] || product["รูปภาพ"] || product["URL รูปภาพ"] || fallbackImage();
+      let imgSrc = null;
+      ["imageUrl", "Image URL", "image_url", "Image", "image", "รูปภาพ", "URL รูปภาพ"].forEach(k => {
+        if (!imgSrc && isValidValue(product[k])) {
+          imgSrc = product[k];
+        }
+      });
+      imgSrc = imgSrc || fallbackImage();
+
       elements.productImage.src = imgSrc;
       elements.productImage.onerror = () => {
         elements.productImage.onerror = null;
@@ -2578,13 +2750,14 @@
     }
 
     function formatPrice(value) {
-      if (value === null || value === undefined || value === "") {
+      if (!isValidValue(value)) {
         return "-";
       }
 
       const normalized = String(value)
         .replace(/,/g, "")
         .replace(/[^\d.-]/g, "");
+      if (!normalized) return "-";
       const number = Number(normalized);
 
       if (Number.isNaN(number)) {
@@ -2616,6 +2789,29 @@
           </svg>
         `)
       );
+    }
+
+    function openImageModal() {
+      if (!elements.productImage || !elements.productImage.src) return;
+      if (elements.productImage.src.startsWith("data:image/svg+xml")) return;
+
+      if (elements.imageModalImg) {
+        elements.imageModalImg.src = elements.productImage.src;
+      }
+      if (elements.imageModalTitle) {
+        elements.imageModalTitle.textContent = elements.productTitle ? elements.productTitle.textContent : "";
+      }
+      if (elements.imageModal) {
+        elements.imageModal.removeAttribute("hidden");
+        document.body.style.overflow = "hidden";
+      }
+    }
+
+    function closeImageModal() {
+      if (elements.imageModal) {
+        elements.imageModal.setAttribute("hidden", "");
+        document.body.style.overflow = "";
+      }
     }
 
     function escapeHtml(value) {
