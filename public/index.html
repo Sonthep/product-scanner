@@ -2031,7 +2031,7 @@
       URL ต้องลงท้ายด้วย /exec
     */
     const API_URL =
-      "https://script.google.com/macros/s/AKfycbwVsl-2NH_SkXxdY2jdlxaom4ob0xrUfqUu99dhbYaLvFw2O74hpGeue625yvlQWy-s/exec";
+      "https://script.google.com/macros/s/AKfycbwoMfLp948KeixzaWpoXOK0knFJhhoInIMyQbNG9TrO9S-Yd6fZRr4hDfsPTLB4DiaV/exec";
 
     const SCAN_CONFIG = {
       fps: 15,
@@ -2390,8 +2390,8 @@
           if (urlObj.searchParams.has("code")) return urlObj.searchParams.get("code").trim();
           if (urlObj.searchParams.has("id")) return urlObj.searchParams.get("id").trim();
 
-          const pathname = urlObj.pathname.replace(/\/+$/, "");
-          const segments = pathname.split("/").filter(Boolean);
+          const decodedPath = decodeURIComponent(urlObj.pathname).replace(/\/+$/, "");
+          const segments = decodedPath.split("/").filter(Boolean);
           if (segments.length > 0) {
             return segments[segments.length - 1].trim();
           }
@@ -2410,6 +2410,12 @@
       }
 
       const rawInput = elements.skuInput.value.trim();
+      
+      isSearching = true;
+      elements.searchButton.disabled = true;
+      elements.uploadButton.disabled = true;
+      hideProduct();
+      
       const sku = extractSkuFromInput(rawInput);
       if (sku) {
         elements.skuInput.value = sku;
@@ -2421,26 +2427,21 @@
           await switchMode("manual");
         }
         elements.skuInput.focus();
+        isSearching = false;
+        elements.searchButton.disabled = false;
+        elements.uploadButton.disabled = false;
         return;
       }
 
-      const cacheKey = sku.toUpperCase();
-      if (clientProductCache.has(cacheKey)) {
-        const cachedResult = clientProductCache.get(cacheKey);
-        showProduct(cachedResult, options.source || "ค้นหาด้วย SKU");
-        setFeedback("", "");
-        return;
-      }
 
       if (!API_URL || !API_URL.endsWith("/exec")) {
         setFeedback("กรุณาตรวจสอบ Apps Script API URL ให้ลงท้ายด้วย /exec", "error");
+        isSearching = false;
+        elements.searchButton.disabled = false;
+        elements.uploadButton.disabled = false;
         return;
       }
 
-      isSearching = true;
-      elements.searchButton.disabled = true;
-      elements.uploadButton.disabled = true;
-      hideProduct();
       setFeedback(`กำลังค้นหา “${sku}”...`, "loading");
 
       try {
@@ -2468,7 +2469,6 @@
           return;
         }
 
-        clientProductCache.set(cacheKey, result);
         showProduct(result, options.source || "ค้นหาด้วย SKU");
         setFeedback("", "");
       } catch (error) {
@@ -2823,12 +2823,14 @@
         .replaceAll("'", "&#039;");
     }
 
-    // --- Geofencing & Location System (Strict Fixed Office Location) ---
+    // --- Geofencing & Location System (Allowed Branches) ---
     const GEOFENCE_CONFIG = {
       ENABLED: true,
-      OFFICE_LAT: 13.82420, // Strict Fixed: Plus Code RCFF+MM ตำบลบางคูเวียง อ.บางกรวย นนทบุรี
-      OFFICE_LNG: 100.42422, // Sevenfive Building Coordinates
-      ALLOWED_RADIUS_METERS: 2000 // Allowed radius boundary (2,000 meters / 2 kilometers)
+      LOCATIONS: [
+        { name: "สำนักงานใหญ่ (นนทบุรี)", lat: 13.82420, lng: 100.42422, radius: 2000 },
+        { name: "สาขาสมุย", lat: 9.5653302, lng: 100.012559, radius: 5000 },
+        { name: "สาขาภูเก็ต", lat: 7.8588875, lng: 98.3652327, radius: 5000 }
+      ]
     };
 
     let isInsideGeofence = false;
@@ -2846,6 +2848,28 @@
           Math.sin(dLon / 2);
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       return R * c;
+    }
+
+    function checkGeofence(userLat, userLng) {
+      if (!GEOFENCE_CONFIG.LOCATIONS || GEOFENCE_CONFIG.LOCATIONS.length === 0) {
+        return { isInside: true, distance: 0, branch: null };
+      }
+
+      let minDistance = Infinity;
+      let closestBranch = null;
+
+      for (const loc of GEOFENCE_CONFIG.LOCATIONS) {
+        const dist = calculateDistanceMeters(userLat, userLng, loc.lat, loc.lng);
+        if (dist <= loc.radius) {
+          return { isInside: true, distance: dist, branch: loc };
+        }
+        if (dist < minDistance) {
+          minDistance = dist;
+          closestBranch = loc;
+        }
+      }
+
+      return { isInside: false, distance: minDistance, branch: closestBranch };
     }
 
     function showLocationModal(message) {
@@ -2884,25 +2908,19 @@
         (position) => {
           const userLat = position.coords.latitude;
           const userLng = position.coords.longitude;
-          const distance = calculateDistanceMeters(
-            userLat,
-            userLng,
-            GEOFENCE_CONFIG.OFFICE_LAT,
-            GEOFENCE_CONFIG.OFFICE_LNG
-          );
+          const result = checkGeofence(userLat, userLng);
 
-          const distText = distance >= 1000 
-            ? `${(distance / 1000).toFixed(2)} กิโลเมตร` 
-            : `${Math.round(distance)} เมตร`;
-
-          if (distance <= GEOFENCE_CONFIG.ALLOWED_RADIUS_METERS) {
+          if (result.isInside) {
             isInsideGeofence = true;
             closeLocationModal();
             if (callback) callback(true);
           } else {
             isInsideGeofence = false;
+            const distText = result.distance >= 1000 
+              ? `${(result.distance / 1000).toFixed(2)} กิโลเมตร` 
+              : `${Math.round(result.distance)} เมตร`;
             showLocationModal(
-              `คุณอยู่นอกพื้นที่อาคารที่กำหนด (ห่างจากพิกัดอาคารประมาณ ${distText})`
+              `คุณอยู่นอกพื้นที่สาขาที่กำหนด (ห่างจาก${result.branch ? result.branch.name : 'สาขาที่ใกล้ที่สุด'}ประมาณ ${distText})`
             );
             if (callback) callback(false);
           }
@@ -2926,24 +2944,19 @@
 
       currentGeoWatchId = navigator.geolocation.watchPosition(
         (position) => {
-          const distance = calculateDistanceMeters(
-            position.coords.latitude,
-            position.coords.longitude,
-            GEOFENCE_CONFIG.OFFICE_LAT,
-            GEOFENCE_CONFIG.OFFICE_LNG
-          );
-          const distText = distance >= 1000 
-            ? `${(distance / 1000).toFixed(2)} กิโลเมตร` 
-            : `${Math.round(distance)} เมตร`;
+          const result = checkGeofence(position.coords.latitude, position.coords.longitude);
 
-          if (distance <= GEOFENCE_CONFIG.ALLOWED_RADIUS_METERS) {
+          if (result.isInside) {
             isInsideGeofence = true;
             closeLocationModal();
           } else {
             isInsideGeofence = false;
             if (typeof stopCamera === "function") stopCamera();
+            const distText = result.distance >= 1000 
+              ? `${(result.distance / 1000).toFixed(2)} กิโลเมตร` 
+              : `${Math.round(result.distance)} เมตร`;
             showLocationModal(
-              `คุณอยู่นอกพื้นที่อาคารที่กำหนด (ห่างจากพิกัดอาคารประมาณ ${distText})`
+              `คุณอยู่นอกพื้นที่สาขาที่กำหนด (ห่างจาก${result.branch ? result.branch.name : 'สาขาที่ใกล้ที่สุด'}ประมาณ ${distText})`
             );
           }
         },
