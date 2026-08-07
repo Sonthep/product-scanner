@@ -14,6 +14,7 @@
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
   <style>
     :root {
@@ -2031,7 +2032,7 @@
       URL ต้องลงท้ายด้วย /exec
     */
     const API_URL =
-      "https://script.google.com/macros/s/AKfycbwoMfLp948KeixzaWpoXOK0knFJhhoInIMyQbNG9TrO9S-Yd6fZRr4hDfsPTLB4DiaV/exec";
+      "https://script.google.com/macros/s/AKfycbyciZrqxM5EwpBfta4Jfv2AzCQ1h693MpuCdVCECsCAAyxZpDIaljwFFNZW49D1kgl2/exec";
 
     const SCAN_CONFIG = {
       fps: 15,
@@ -2152,6 +2153,9 @@
       });
 
       populateCameras();
+      
+      // Pre-load Firestore (Warm-up)
+      setTimeout(() => getFirestore(), 500);
     }
 
     async function populateCameras() {
@@ -2348,15 +2352,16 @@
       if (
         !scannedValue ||
         isSearching ||
-        (scannedValue === lastScannedValue && now - lastScannedAt < 3000)
+        (scannedValue === lastScannedValue && now - lastScannedAt < 1500)
       ) {
         return;
       }
 
       lastScannedValue = scannedValue;
       lastScannedAt = now;
+      if (navigator.vibrate) navigator.vibrate([100]); // Haptic feedback
       elements.skuInput.value = scannedValue;
-      await stopCamera();
+      // ไม่ต้อง await stopCamera ก่อน — ทำพร้อมกับ Firestore query
       await searchProduct({ source: `สแกนจาก ${source}` });
     }
 
@@ -2401,31 +2406,27 @@
       return text;
     }
 
+    // Client-side in-memory cache
     const clientProductCache = new Map();
+    const CACHE_TTL_MS = 5 * 60 * 1000;
 
     async function searchProduct(options = {}) {
       if (!checkAuthGuard()) return;
-      if (isSearching) {
-        return;
-      }
+      if (isSearching) return;
 
       const rawInput = elements.skuInput.value.trim();
-      
+
       isSearching = true;
       elements.searchButton.disabled = true;
       elements.uploadButton.disabled = true;
       hideProduct();
-      
+
       const sku = extractSkuFromInput(rawInput);
-      if (sku) {
-        elements.skuInput.value = sku;
-      }
+      if (sku) elements.skuInput.value = sku;
 
       if (!sku) {
         setFeedback("กรุณากรอกหรือสแกน SKU ก่อนค้นหา", "error");
-        if (elements.manualPanel.hidden) {
-          await switchMode("manual");
-        }
+        if (elements.manualPanel.hidden) await switchMode("manual");
         elements.skuInput.focus();
         isSearching = false;
         elements.searchButton.disabled = false;
@@ -2433,51 +2434,81 @@
         return;
       }
 
-
-      if (!API_URL || !API_URL.endsWith("/exec")) {
-        setFeedback("กรุณาตรวจสอบ Apps Script API URL ให้ลงท้ายด้วย /exec", "error");
-        isSearching = false;
-        elements.searchButton.disabled = false;
-        elements.uploadButton.disabled = false;
-        return;
-      }
-
-      setFeedback(`กำลังค้นหา “${sku}”...`, "loading");
+      setFeedback(`กำลังค้นหา "${sku}"...`, "loading");
 
       try {
-        const requestUrl =
-          `${API_URL}?sku=${encodeURIComponent(sku)}&t=${Date.now()}`;
-
-        const response = await fetch(requestUrl, {
-          method: "GET",
-          redirect: "follow",
-          cache: "no-store"
-        });
-
-        if (!response.ok) {
-          throw new Error(`API ตอบกลับ HTTP ${response.status}`);
-        }
-
-        const result = await response.json();
-
-        if (!result) {
-          throw new Error("API ไม่ส่งข้อมูลกลับมา");
-        }
-
-        if (!result.found) {
-          setFeedback(result.message || `ไม่พบสินค้ารหัส ${sku}`, "error");
+        // 1. Client cache (instant)
+        const cached = clientProductCache.get(sku);
+        if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
+          showProduct(cached.data, options.source || "แคช");
+          setFeedback("", "");
+          stopCamera().catch(() => {});
           return;
         }
 
-        showProduct(result, options.source || "ค้นหาด้วย SKU");
-        setFeedback("", "");
+        // 2. Firestore + stopCamera พร้อมกัน (~200ms เร็วขึ้น)
+        const [, firestoreResult] = await Promise.all([
+          stopCamera().catch(() => {}),
+          searchFromFirestore(sku)
+        ]);
+
+        if (firestoreResult && firestoreResult.found) {
+          clientProductCache.set(sku, { data: firestoreResult, ts: Date.now() });
+          showProduct(firestoreResult, options.source || "ค้นหาด้วย SKU");
+          setFeedback("", "");
+          return;
+        }
+
+        // 3. Fallback: Apps Script
+        if (API_URL && API_URL.endsWith("/exec")) {
+          setFeedback(`กำลังค้นหาจากฐานข้อมูลหลัก "${sku}"...`, "loading");
+          const requestUrl = `${API_URL}?sku=${encodeURIComponent(sku)}&t=${Date.now()}`;
+          const response = await fetch(requestUrl, { method: "GET", redirect: "follow", cache: "no-store" });
+          if (!response.ok) throw new Error(`API ตอบกลับ HTTP ${response.status}`);
+          const result = await response.json();
+          if (!result) throw new Error("API ไม่ส่งข้อมูลกลับมา");
+          if (!result.found) {
+            setFeedback(result.message || `ไม่พบสินค้ารหัส ${sku}`, "error");
+            return;
+          }
+          clientProductCache.set(sku, { data: result, ts: Date.now() });
+          showProduct(result, options.source || "ค้นหาด้วย SKU");
+          setFeedback("", "");
+        } else {
+          setFeedback(`ไม่พบสินค้ารหัส ${sku}`, "error");
+        }
       } catch (error) {
-        console.error("Product API error:", error);
+        console.error("Product search error:", error);
         setFeedback(`เชื่อมต่อฐานข้อมูลไม่สำเร็จ: ${error.message}`, "error");
       } finally {
         isSearching = false;
         elements.searchButton.disabled = false;
         elements.uploadButton.disabled = false;
+      }
+    }
+
+    // Query Firestore โดยตรง (SKU = document ID)
+    async function searchFromFirestore(sku) {
+      try {
+        const db = getFirestore();
+        if (!db) return null;
+        const docSnap = await db.collection("products").doc(encodeURIComponent(sku)).get();
+        if (!docSnap.exists) return { found: false };
+        const data = docSnap.data();
+        return {
+          found: true,
+          sku: data.sku || sku,
+          title: data.title || "",
+          price: data.price || "",
+          includeVat: data.includeVat || "",
+          "include vat 7%": data.includeVat || "",
+          vendor: data.vendor || "",
+          imageUrl: data.imageUrl || "",
+          handle: data.handle || ""
+        };
+      } catch (err) {
+        console.warn("Firestore query error:", err);
+        return null;
       }
     }
 
@@ -3121,6 +3152,16 @@
 
     if (window.firebase && !firebase.apps.length) {
       firebase.initializeApp(firebaseConfig);
+    }
+
+    // Firestore lazy singleton
+    let _db = null;
+    function getFirestore() {
+      if (!_db && window.firebase && firebase.apps.length) {
+        _db = firebase.firestore();
+        _db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+      }
+      return _db;
     }
 
     function loginWithFirebaseGoogle() {
